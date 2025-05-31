@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Tỏ tình không gian 3D</title>
+  <style>
+    html, body {
+      margin: 0;
+      overflow: hidden;
+      background: black;
+      height: 100%;
+      width: 100%;
+      perspective: 1000px;
+      font-family: 'Arial', sans-serif;
+      cursor: grab;
+      position: relative;
+    }
+    body:active {
+      cursor: grabbing;
+    }
+
+    #space3d {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100vw;
+      height: 100vh;
+      transform-style: preserve-3d;
+      transform-origin: center center;
+      transform: translateZ(0px) rotateX(0deg) rotateY(0deg);
+      transition: transform 0.1s ease-out;
+      overflow: visible;
+      z-index: 1;
+    }
+
+    #galaxy {
+      position: absolute;
+      left: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 300px;
+      height: 300px;
+      background: url('https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Milky_Way_Arch.jpg/600px-Milky_Way_Arch.jpg') no-repeat center center;
+      background-size: contain;
+      filter: brightness(1.5) contrast(1.2);
+      pointer-events: none;
+      user-select: none;
+      z-index: 2;
+      opacity: 0.9;
+    }
+
+    .word {
+      position: absolute;
+      color: pink;
+      font-weight: bold;
+      white-space: nowrap;
+      transform-style: preserve-3d;
+      opacity: 0;
+      animation: fadeInOutMove 20s linear forwards;
+      pointer-events: none;
+      user-select: none;
+      z-index: 1;
+    }
+
+    @keyframes fadeInOutMove {
+      0% {
+        opacity: 0;
+        transform: translate3d(0, 0, -1000px) scale(0.5);
+      }
+      10% { opacity: 1; }
+      50% {
+        opacity: 1;
+        transform: translate3d(var(--move-x), var(--move-y), 0) scale(1);
+      }
+      90% {
+        opacity: 1;
+        transform: translate3d(calc(var(--move-x) * 1.5), calc(var(--move-y) * 1.5), 600px) scale(1.5);
+      }
+      100% {
+        opacity: 0;
+        transform: translate3d(calc(var(--move-x) * 2), calc(var(--move-y) * 2), 1000px) scale(2);
+      }
+    }
+
+    .star {
+      position: absolute;
+      background: white;
+      border-radius: 50%;
+      opacity: 0.8;
+      box-shadow: 0 0 8px 2px white;
+      animation: twinkle 3s infinite ease-in-out;
+      will-change: transform, opacity;
+      z-index: 1;
+    }
+
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+
+    #pinkboard {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 5;
+      animation: heartbeat 1s infinite ease-in-out;
+    }
+
+    @keyframes heartbeat {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.06); }
+    }
+  </style>
+</head>
+<audio id="bgMusic" loop>
+  <source src="c.mp3" type="audio/mpeg">
+  Trình duyệt của bạn không hỗ trợ âm thanh.
+</audio>
+<body>
+
+  <div id="space3d"></div>
+  <div id="galaxy"></div>
+  <canvas id="pinkboard"></canvas>
+
+  <!-- SCRIPT: chữ 3D và sao -->
+  <script>
+    const texts = [
+      "💗 Love u so much", "💘 Luôn luôn bên nhau", "🎉 Love You",
+      "💖 Nguyễn Hoàng Quân", "💕 Mãi yêu em", "💞 Bên nhau trọn đời",
+      "🌟 You are my universe", "❤️‍🔥 Tình yêu bất diệt"
+    ];
+    const space3d = document.getElementById('space3d');
+
+    function createWord() {
+      const word = document.createElement('div');
+      word.className = 'word';
+      word.textContent = texts[Math.floor(Math.random() * texts.length)];
+      const x = Math.random() * window.innerWidth;
+      const y = Math.random() * window.innerHeight;
+      const z = -500 + Math.random() * 1000;
+      const moveX = (Math.random() - 0.5) * 100;
+      const moveY = (Math.random() - 0.5) * 100;
+      word.style.left = `${x}px`;
+      word.style.top = `${y}px`;
+      word.style.fontSize = `${12 + Math.random() * 12}px`;
+      word.style.setProperty('--move-x', `${moveX}px`);
+      word.style.setProperty('--move-y', `${moveY}px`);
+      word.style.transform = `translate3d(0, 0, ${z}px)`;
+      space3d.appendChild(word);
+      setTimeout(() => word.remove(), 20000);
+    }
+
+    for (let i = 0; i < 50; i++) createWord();
+    setInterval(() => { for (let i = 0; i < 5; i++) createWord(); }, 700);
+
+    // drag rotate
+    let rotationX = 0, rotationY = 0, zoomZ = 0;
+    let isDragging = false, lastX = 0, lastY = 0;
+
+    window.addEventListener('mousedown', e => { isDragging = true; lastX = e.clientX; lastY = e.clientY; });
+    window.addEventListener('mouseup', () => isDragging = false);
+    window.addEventListener('mouseleave', () => isDragging = false);
+    window.addEventListener('mousemove', e => {
+      if (!isDragging) return;
+      const dx = e.clientX - lastX, dy = e.clientY - lastY;
+      lastX = e.clientX; lastY = e.clientY;
+      rotationY += dx * 0.3; rotationX -= dy * 0.3;
+      rotationX = Math.max(-90, Math.min(90, rotationX));
+      updateTransform();
+    });
+    window.addEventListener('wheel', e => {
+      zoomZ += e.deltaY * 0.5;
+      zoomZ = Math.max(-1000, Math.min(1000, zoomZ));
+      updateTransform();
+    });
+    function updateTransform() {
+      space3d.style.transform = `translateZ(${zoomZ}px) rotateX(${rotationX}deg) rotateY(${rotationY}deg)`;
+    }
+
+    function createStar() {
+      const star = document.createElement('div');
+      star.className = 'star';
+      const size = Math.random() * 2 + 1;
+      star.style.width = `${size}px`;
+      star.style.height = `${size}px`;
+      const x = Math.random() * window.innerWidth;
+      const y = Math.random() * window.innerHeight;
+      const z = (Math.random() - 0.5) * 2000;
+      star.style.left = `${x}px`;
+      star.style.top = `${y}px`;
+      star.style.transform = `translateZ(${z}px)`;
+      star.style.animationDuration = `${2 + Math.random() * 3}s`;
+      space3d.appendChild(star);
+    }
+
+    for (let i = 0; i < 100; i++) createStar();
+  </script>
+
+  <!-- SCRIPT: trái tim -->
+  <script>
+    var settings = {
+      particles: {
+        length: 5000,//2200
+        duration: 2,
+        velocity: 120,
+        effect: -1.2,
+        size: 8,//12
+      },
+    };
+
+    var Point = function (x, y) { this.x = x || 0; this.y = y || 0; };
+    Point.prototype = {
+      clone: function () { return new Point(this.x, this.y); },
+      length: function (l) {
+        if (l === undefined) return Math.sqrt(this.x * this.x + this.y * this.y);
+        this.normalize();
+        this.x *= l; this.y *= l;
+        return this;
+      },
+      normalize: function () {
+        var l = this.length();
+        this.x /= l; this.y /= l;
+        return this;
+      }
+    };
+
+    var Particle = function () {
+      this.position = new Point();
+      this.velocity = new Point();
+      this.acceleration = new Point();
+      this.age = 0;
+    };
+    Particle.prototype = {
+      initialize: function (x, y, dx, dy) {
+        this.position.x = x;
+        this.position.y = y;
+        this.velocity.x = dx;
+        this.velocity.y = dy;
+        this.acceleration.x = dx * settings.particles.effect;
+        this.acceleration.y = dy * settings.particles.effect;
+        this.age = 0;
+      },
+      update: function (dt) {
+        this.position.x += this.velocity.x * dt;
+        this.position.y += this.velocity.y * dt;
+        this.velocity.x += this.acceleration.x * dt;
+        this.velocity.y += this.acceleration.y * dt;
+        this.age += dt;
+      },
+      draw: function (ctx, image) {
+        function ease(t) { return --t * t * t + 1; }
+        var size = image.width * ease(this.age / settings.particles.duration);
+        ctx.globalAlpha = 1 - this.age / settings.particles.duration;
+        ctx.drawImage(image, this.position.x - size / 2, this.position.y - size / 2, size, size);
+      }
+    };
+
+    var ParticlePool = function (length) {
+      this.particles = new Array(length);
+      this.firstActive = 0;
+      this.firstFree = 0;
+      this.duration = settings.particles.duration;
+      for (let i = 0; i < this.particles.length; i++) {
+        this.particles[i] = new Particle();
+      }
+    };
+    ParticlePool.prototype = {
+      add: function (x, y, dx, dy) {
+        this.particles[this.firstFree].initialize(x, y, dx, dy);
+        this.firstFree = (this.firstFree + 1) % this.particles.length;
+        if (this.firstActive === this.firstFree) {
+          this.firstActive = (this.firstActive + 1) % this.particles.length;
+        }
+      },
+      update: function (dt) {
+        let i = this.firstActive;
+        while (i !== this.firstFree) {
+          this.particles[i].update(dt);
+          if (this.particles[i].age >= this.duration) {
+            this.firstActive = (this.firstActive + 1) % this.particles.length;
+          }
+          i = (i + 1) % this.particles.length;
+        }
+      },
+      draw: function (ctx, img) {
+        let i = this.firstActive;
+        while (i !== this.firstFree) {
+          this.particles[i].draw(ctx, img);
+          i = (i + 1) % this.particles.length;
+        }
+      }
+    };
+
+    (function (canvas) {
+      const ctx = canvas.getContext("2d");
+      const particles = new ParticlePool(settings.particles.length);
+      const particleRate = settings.particles.length / settings.particles.duration;
+      let time;
+
+      function pointOnHeart(t) {
+        return new Point(
+          160 * Math.pow(Math.sin(t), 3),
+          130 * Math.cos(t) - 50 * Math.cos(2 * t) - 20 * Math.cos(3 * t) - 10 * Math.cos(4 * t) + 25
+        );
+      }
+
+      const image = (function () {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = settings.particles.size;
+        canvas.height = settings.particles.size;
+        function to(t) {
+          const point = pointOnHeart(t);
+          point.x = settings.particles.size / 2 + (point.x * settings.particles.size) / 500;
+          point.y = settings.particles.size / 2 - (point.y * settings.particles.size) / 500;
+          return point;
+        }
+        ctx.beginPath();
+        let t = -Math.PI, point = to(t);
+        ctx.moveTo(point.x, point.y);
+        while (t < Math.PI) {
+          t += 0.01;
+          point = to(t);
+          ctx.lineTo(point.x, point.y);
+        }
+        ctx.closePath();
+        ctx.fillStyle = "#00FFFF";
+        ctx.fill();
+        const img = new Image();
+        img.src = canvas.toDataURL();
+        return img;
+      })();
+
+      function render() {
+        requestAnimationFrame(render);
+        const newTime = new Date().getTime() / 1000;
+        const dt = newTime - (time || newTime);
+        time = newTime;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const amount = particleRate * dt;
+        for (let i = 0; i < amount; i++) {
+          const pos = pointOnHeart(Math.PI - 2 * Math.PI * Math.random());
+          const dir = pos.clone().length(settings.particles.velocity);
+          particles.add(canvas.width / 2 + pos.x, canvas.height / 2 - pos.y, dir.x, -dir.y);
+        }
+        particles.update(dt);
+        particles.draw(ctx, image);
+      }
+
+      function onResize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      }
+
+      window.addEventListener('resize', onResize);
+      setTimeout(() => {
+        onResize();
+        render();
+      }, 10);
+    })(document.getElementById("pinkboard"));
+    // Tự động phát nhạc sau click
+const music = document.getElementById("bgMusic");
+function tryPlayMusic() {
+  music.play().catch(() => { console.warn("Trình duyệt chặn phát nhạc tự động."); });
+  window.removeEventListener("click", tryPlayMusic);
+}
+window.addEventListener("click", tryPlayMusic);
+  </script>
+</body>
+</html>
