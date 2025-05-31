@@ -406,13 +406,17 @@
         render();
       }, 10);
     })(document.getElementById("pinkboard"));
-    // Tự động phát nhạc sau click
-const music = document.getElementById("bgMusic");
-function tryPlayMusic() {
-  music.play().catch(() => { console.warn("Trình duyệt chặn phát nhạc tự động."); });
-  window.removeEventListener("click", tryPlayMusic);
-}
-window.addEventListener("click", tryPlayMusic);
+     // Auto-play music on first touch
+  const audio = document.querySelector('audio');
+
+  function tryPlayAudio() {
+    audio.play().catch(() => {}); // Không lỗi nếu trình duyệt chặn
+    window.removeEventListener('touchstart', tryPlayAudio);
+    window.removeEventListener('click', tryPlayAudio);
+  }
+
+  window.addEventListener('touchstart', tryPlayAudio, { once: true });
+  window.addEventListener('click', tryPlayAudio, { once: true });
   </script>
 </body>
 </html>
