@@ -153,45 +153,93 @@
     for (let i = 0; i < 50; i++) createWord();
     setInterval(() => { for (let i = 0; i < 5; i++) createWord(); }, 700);
 
-    // drag rotate
-    let rotationX = 0, rotationY = 0, zoomZ = 0;
-    let isDragging = false, lastX = 0, lastY = 0;
+    
+  let rotationX = 0, rotationY = 0, zoomZ = 0;
+  let isDragging = false, lastX = 0, lastY = 0;
+  let isPinching = false;
+  let pinchStartDistance = 0;
+  let pinchStartZoom = 0;
 
-    window.addEventListener('mousedown', e => { isDragging = true; lastX = e.clientX; lastY = e.clientY; });
-    window.addEventListener('mouseup', () => isDragging = false);
-    window.addEventListener('mouseleave', () => isDragging = false);
-    window.addEventListener('mousemove', e => {
-      if (!isDragging) return;
-      const dx = e.clientX - lastX, dy = e.clientY - lastY;
-      lastX = e.clientX; lastY = e.clientY;
-      rotationY += dx * 0.3; rotationX -= dy * 0.3;
-      rotationX = Math.max(-90, Math.min(90, rotationX));
-      updateTransform();
-    });
-    window.addEventListener('wheel', e => {
-      zoomZ += e.deltaY * 0.5;
+  //const space3d = document.getElementById('space3d');
+
+  function updateTransform() {
+    space3d.style.transform = `translateZ(${zoomZ}px) rotateX(${rotationX}deg) rotateY(${rotationY}deg)`;
+  }
+
+  function startDrag(x, y) {
+    isDragging = true;
+    lastX = x;
+    lastY = y;
+  }
+
+  function stopDrag() {
+    isDragging = false;
+  }
+
+  function moveDrag(x, y) {
+    if (!isDragging) return;
+    const dx = x - lastX;
+    const dy = y - lastY;
+    lastX = x;
+    lastY = y;
+    rotationY += dx * 0.3;
+    rotationX -= dy * 0.3;
+    rotationX = Math.max(-90, Math.min(90, rotationX));
+    updateTransform();
+  }
+
+  // Chuột
+  window.addEventListener('mousedown', e => startDrag(e.clientX, e.clientY));
+  window.addEventListener('mouseup', stopDrag);
+  window.addEventListener('mouseleave', stopDrag);
+  window.addEventListener('mousemove', e => moveDrag(e.clientX, e.clientY));
+  window.addEventListener('wheel', e => {
+    zoomZ += e.deltaY * 0.5;
+    zoomZ = Math.max(-1000, Math.min(1000, zoomZ));
+    updateTransform();
+  });
+
+  // Cảm ứng & pinch zoom
+  window.addEventListener('touchstart', e => {
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      startDrag(touch.clientX, touch.clientY);
+    } else if (e.touches.length === 2) {
+      isPinching = true;
+      pinchStartDistance = getTouchDistance(e.touches[0], e.touches[1]);
+      pinchStartZoom = zoomZ;
+    }
+  }, { passive: true });
+
+  window.addEventListener('touchmove', e => {
+    if (e.touches.length === 1 && !isPinching) {
+      const touch = e.touches[0];
+      moveDrag(touch.clientX, touch.clientY);
+    } else if (e.touches.length === 2) {
+      const currentDistance = getTouchDistance(e.touches[0], e.touches[1]);
+      const zoomChange = (currentDistance - pinchStartDistance) * 1.5;
+      zoomZ = pinchStartZoom + zoomChange;
       zoomZ = Math.max(-1000, Math.min(1000, zoomZ));
       updateTransform();
-    });
-    function updateTransform() {
-      space3d.style.transform = `translateZ(${zoomZ}px) rotateX(${rotationX}deg) rotateY(${rotationY}deg)`;
     }
+  }, { passive: true });
 
-    function createStar() {
-      const star = document.createElement('div');
-      star.className = 'star';
-      const size = Math.random() * 2 + 1;
-      star.style.width = `${size}px`;
-      star.style.height = `${size}px`;
-      const x = Math.random() * window.innerWidth;
-      const y = Math.random() * window.innerHeight;
-      const z = (Math.random() - 0.5) * 2000;
-      star.style.left = `${x}px`;
-      star.style.top = `${y}px`;
-      star.style.transform = `translateZ(${z}px)`;
-      star.style.animationDuration = `${2 + Math.random() * 3}s`;
-      space3d.appendChild(star);
-    }
+  window.addEventListener('touchend', e => {
+    if (e.touches.length < 2) isPinching = false;
+    if (e.touches.length === 0) stopDrag();
+  }, { passive: true });
+
+  window.addEventListener('touchcancel', () => {
+    isPinching = false;
+    stopDrag();
+  });
+
+  function getTouchDistance(touch1, touch2) {
+    const dx = touch2.clientX - touch1.clientX;
+    const dy = touch2.clientY - touch1.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
 
     for (let i = 0; i < 100; i++) createStar();
   </script>
